@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Voting OSIS SMPN 36 Samarinda</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React & ReactDOM UMD -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  
+  <!-- Babel Compiler for In-Browser JSX Parsing -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- SheetJS for Excel Import / Export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-800">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    const DEFAULT_GIST_URL = "https://gist.githubusercontent.com/ragielswd/46b2f33ad29c95e0fa7da6ea50fe365f/raw/82a6d7f1581cd9517f2ffa7852eff4bfe1003819/gistfile1.txt";
+
+    // GAS Server Promise Bridge Helper
+    const callGAS = (functionName, ...args) => {
+      return new Promise((resolve, reject) => {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler((err) => reject(err))
+            [functionName](...args);
+        } else {
+          // Mode Simulasi Lokal (jika dibuka langsung tanpa Google Apps Script)
+          console.warn(`[Local Mode] Direct call fallback: ${functionName}`);
+          setTimeout(() => {
+            if (functionName === 'getInitialData') {
+              resolve({
+                candidates: [
+                  {
+                    id: 'c1',
+                    nomorUrut: '01',
+                    nama: 'Ahmad Rizky Pratama',
+                    kelas: 'VIII-A',
+                    foto: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=600&auto=format&fit=crop',
+                    visi: 'Mewujudkan SMPN 36 Samarinda yang berprestasi, berkarakter unggul, berbudaya lingkungan, dan berbasis teknologi.',
+                    misi: [
+                      'Meningkatkan keimanan dan kedisiplinan siswa.',
+                      'Mengembangkan minat dan bakat dalam esktrakurikuler.',
+                      'Menciptakan lingkungan sekolah yang bersih dan nyaman.'
+                    ]
+                  },
+                  {
+                    id: 'c2',
+                    nomorUrut: '02',
+                    nama: 'Siti Nurhaliza',
+                    kelas: 'VIII-C',
+                    foto: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=600&auto=format&fit=crop',
+                    visi: 'Menjadikan OSIS SMPN 36 Samarinda sebagai wadah aspirasi siswa yang inklusif, kreatif, dan berintegritas tinggi.',
+                    misi: [
+                      'Menyediakan forum aspirasi siswa secara terbuka.',
+                      'Mengadakan program literasi digital dan seni.',
+                      'Mempererat persaudaraan antar sesama siswa.'
+                    ]
+                  },
+                  {
+                    id: 'c3',
+                    nomorUrut: '03',
+                    nama: 'Muhammad Dimas Anggara',
+                    kelas: 'VIII-E',
+                    foto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600&auto=format&fit=crop',
+                    visi: 'Mewujudkan OSIS SMPN 36 Samarinda yang responsif, berdaya saing, dan aktif dalam aksi sosial lingkungan.',
+                    misi: [
+                      'Mengintegrasikan teknologi informasi pada program OSIS.',
+                      'Mengadakan pelatihan public speaking kepemimpinan.',
+                      'Menyelenggarakan aksi sosial dan ramah lingkungan.'
+                    ]
+                  }
+                ],
+                validTokens: ["TOKEN-36-001", "TOKEN-36-002", "TOKEN-36-003", "TOKEN-36-004", "TOKEN-36-005"],
+                usedTokens: [],
+                votes: []
+              });
+            } else if (functionName === 'submitVote') {
+              resolve({ success: true, message: 'Suara berhasil direkam (Local Mode)!' });
+            } else if (functionName === 'adminLogin') {
+              resolve({ success: args[0] === 'admin' && args[1] === 'osis3636', message: 'Password salah' });
+            } else {
+              resolve({ success: true });
+            }
+          }, 400);
+        }
+      });
+    };
+
+    // Lightweight Inline SVG Icon Helper Components
+    const IconVote = () => <svg className="w-5 h-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>;
+    const IconBarChart = () => <svg className="w-5 h-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>;
+    const IconLock = () => <svg className="w-5 h-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>;
+    const IconShield = () => <svg className="w-5 h-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>;
+    const IconRefresh = ({ className }) => <svg className={`w-4 h-4 inline ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>;
+    const IconPlus = () => <svg className="w-4 h-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>;
+    const IconTrash = () => <svg className="w-4 h-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>;
+
+    function App() {
+      // System States
+      const [activeTab, setActiveTab] = useState('vote'); // 'vote', 'quickcount', 'admin'
+      const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+      const [isLoading, setIsLoading] = useState(true);
+
+      // Core Data from Spreadsheet Database
+      const [candidates, setCandidates] = useState([]);
+      const [validTokens, setValidTokens] = useState([]);
+      const [usedTokens, setUsedTokens] = useState([]);
+      const [votes, setVotes] = useState([]);
+
+      // Voting States
+      const [inputToken, setInputToken] = useState('');
+      const [authenticatedToken, setAuthenticatedToken] = useState(null);
+      const [tokenError, setTokenError] = useState('');
+      const [selectedCandidate, setSelectedCandidate] = useState(null);
+      const [showConfirmModal, setShowConfirmModal] = useState(false);
+      const [showSuccessModal, setShowSuccessModal] = useState(false);
+      const [isSubmittingVote, setIsSubmittingVote] = useState(false);
+      const [detailModalCandidate, setDetailModalCandidate] = useState(null);
+      const [countdown, setCountdown] = useState(4);
+
+      // Admin States
+      const [adminUsername, setAdminUsername] = useState('');
+      const [adminPassword, setAdminPassword] = useState('');
+      const [adminLoginError, setAdminLoginError] = useState('');
+      const [candidateModalOpen, setCandidateModalOpen] = useState(false);
+      const [editingCandidate, setEditingCandidate] = useState(null);
+      const [candidateForm, setCandidateForm] = useState({ nomorUrut: '', nama: '', kelas: '', foto: '', visi: '', misi: '' });
+      const [candidateToDelete, setCandidateToDelete] = useState(null);
+      const [gistUrlInput, setGistUrlInput] = useState(DEFAULT_GIST_URL);
+      const [gistStatusMessage, setGistStatusMessage] = useState({ type: '', text: '' });
+      const [isImportingTokens, setIsImportingTokens] = useState(false);
+
+      // Quick Count Presentation States
+      const [isFullscreen, setIsFullscreen] = useState(false);
+      const [lastRefreshed, setLastRefreshed] = useState(new Date());
+      const [currentTime, setCurrentTime] = useState(new Date());
+      const [isRefreshing, setIsRefreshing] = useState(false);
+
+      // Fetch initial data from Google Spreadsheet
+      const loadSpreadsheetData = async (silent = false) => {
+        if (!silent) setIsLoading(true);
+        setIsRefreshing(true);
+        try {
+          const res = await callGAS('getInitialData');
+          setCandidates(res.candidates || []);
+          setValidTokens(res.validTokens || []);
+          setUsedTokens(res.usedTokens || []);
+          setVotes(res.votes || []);
+          setLastRefreshed(new Date());
+        } catch (err) {
+          console.error("Gagal memuat data dari Spreadsheet:", err);
+        } finally {
+          setIsLoading(false);
+          setTimeout(() => setIsRefreshing(false), 600);
+        }
+      };
+
+      useEffect(() => {
+        loadSpreadsheetData();
+      }, []);
+
+      // Real-time clock & 5-Second Auto-Polling for Quick Count
+      useEffect(() => {
+        const timerClock = setInterval(() => setCurrentTime(new Date()), 1000);
+        const timerSync = setInterval(() => loadSpreadsheetData(true), 5000);
+        return () => {
+          clearInterval(timerClock);
+          clearInterval(timerSync);
+        };
+      }, []);
+
+      // Auto redirect countdown after successful vote
+      useEffect(() => {
+        let timer;
+        if (showSuccessModal && countdown > 0) {
+          timer = setInterval(() => setCountdown(prev => prev - 1), 1000);
+        } else if (showSuccessModal && countdown === 0) {
+          setShowSuccessModal(false);
+          setAuthenticatedToken(null);
+          setInputToken('');
+          setCountdown(4);
+        }
+        return () => clearInterval(timer);
+      }, [showSuccessModal, countdown]);
+
+      // Handle Student Token Submit
+      const handleTokenSubmit = (e) => {
+        e.preventDefault();
+        const clean = inputToken.trim().toUpperCase();
+        if (!clean) {
+          setTokenError('Silakan masukkan token akses.');
+          return;
+        }
+        if (!validTokens.includes(clean)) {
+          setTokenError('Token tidak terdaftar atau tidak valid.');
+          return;
+        }
+        if (usedTokens.includes(clean)) {
+          setTokenError('Token ini sudah pernah digunakan untuk memilih!');
+          return;
+        }
+        setAuthenticatedToken(clean);
+        setTokenError('');
+      };
+
+      // Handle Confirm Vote Submission
+      const handleVoteConfirm = async () => {
+        if (!selectedCandidate || !authenticatedToken) return;
+        setIsSubmittingVote(true);
+        try {
+          const res = await callGAS('submitVote', authenticatedToken, selectedCandidate.id);
+          if (res.success) {
+            setShowConfirmModal(false);
+            setShowSuccessModal(true);
+            setCountdown(4);
+            loadSpreadsheetData(true);
+          } else {
+            alert(res.message || 'Gagal menyimpan suara.');
+          }
+        } catch (err) {
+          alert('Terjadi kesalahan jaringan server: ' + err.toString());
+        } finally {
+          setIsSubmittingVote(false);
+        }
+      };
+
+      // Admin Login
+      const handleAdminLogin = async (e) => {
+        e.preventDefault();
+        try {
+          const res = await callGAS('adminLogin', adminUsername, adminPassword);
+          if (res.success) {
+            setIsAdminLoggedIn(true);
+            setAdminLoginError('');
+            setAdminUsername('');
+            setAdminPassword('');
+          } else {
+            setAdminLoginError(res.message || 'Login Gagal!');
+          }
+        } catch (err) {
+          setAdminLoginError('Gagal terhubung ke server Google Apps Script.');
+        }
+      };
+
+      // Candidate Save
+      const handleSaveCandidate = async (e) => {
+        e.preventDefault();
+        const parsedMisi = candidateForm.misi
+          ? candidateForm.misi.split('\n').map(m => m.trim()).filter(m => m.length > 0)
+          : [];
+
+        const payload = {
+          ...candidateForm,
+          misi: parsedMisi
+        };
+
+        if (editingCandidate) {
+          payload.id = editingCandidate.id;
+          await callGAS('updateCandidate', payload);
+        } else {
+          await callGAS('addCandidate', payload);
+        }
+
+        setCandidateModalOpen(false);
+        loadSpreadsheetData(true);
+      };
+
+      const handleDeleteCandidate = async () => {
+        if (!candidateToDelete) return;
+        await callGAS('deleteCandidate', candidateToDelete.id);
+        setCandidateToDelete(null);
+        loadSpreadsheetData(true);
+      };
+
+      // Token Importer (File Excel / Gist)
+      const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setIsImportingTokens(true);
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+          try {
+            let extractedTokens = [];
+            if (file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
+              extractedTokens = evt.target.result.split(/[\n,\s]+/).map(t => t.trim().toUpperCase()).filter(t => t.length > 0);
+            } else {
+              const data = new Uint8Array(evt.target.result);
+              const workbook = XLSX.read(data, { type: 'array' });
+              const sheet = workbook.Sheets[workbook.SheetNames[0]];
+              const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+              json.forEach(row => {
+                if (Array.isArray(row)) {
+                  row.forEach(cell => {
+                    const str = String(cell || '').trim().toUpperCase();
+                    if (str && str !== 'TOKEN' && str !== 'NO') extractedTokens.push(str);
+                  });
+                }
+              });
+            }
+
+            const unique = Array.from(new Set(extractedTokens));
+            if (unique.length > 0) {
+              await callGAS('replaceTokens', unique);
+              setGistStatusMessage({ type: 'success', text: `Berhasil memperbarui database Google Sheets dengan ${unique.length} token!` });
+              loadSpreadsheetData(true);
+            } else {
+              setGistStatusMessage({ type: 'error', text: 'Tidak ada token valid ditemukan dalam file.' });
+            }
+          } catch (err) {
+            setGistStatusMessage({ type: 'error', text: 'Gagal memproses file: ' + err.toString() });
+          } finally {
+            setIsImportingTokens(false);
+          }
+        };
+
+        if (file.name.endsWith('.csv') || file.name.endsWith('.txt')) reader.readAsText(file);
+        else reader.readAsArrayBuffer(file);
+      };
+
+      // Quick Count Stats Calculation
+      const quickCountData = useMemo(() => {
+        const total = votes.length;
+        const counts = {};
+        candidates.forEach(c => counts[c.id] = 0);
+        votes.forEach(v => {
+          if (counts[v.candidateId] !== undefined) counts[v.candidateId]++;
+        });
+
+        const stats = candidates.map(c => {
+          const count = counts[c.id] || 0;
+          const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+          return { ...c, voteCount: count, percentage: parseFloat(percentage) };
+        });
+
+        let leading = null;
+        let maxVotes = -1;
+        stats.forEach(c => {
+          if (c.voteCount > maxVotes && c.voteCount > 0) {
+            maxVotes = c.voteCount;
+            leading = c;
+          }
+        });
+
+        return { stats, totalVotesCast: total, leading };
+      }, [candidates, votes]);
+
+      const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+          setIsFullscreen(true);
+        } else {
+          document.exitFullscreen().catch(() => {});
+          setIsFullscreen(false);
+        }
+      };
+
+      return (
+        <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 relative ${
+          isFullscreen ? 'bg-slate-950 text-slate-100' : 'bg-gradient-to-br from-amber-50/80 via-sky-50/60 to-indigo-50/80 text-slate-800'
+        }`}>
+          {/* Background Watermark Logo Sekolah */}
+          <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center opacity-[0.05] select-none">
+            <img src="https://iili.io/BxaPayB.png" alt="Watermark SMPN 36 Samarinda" className="w-[80vw] max-w-[600px] object-contain" />
+          </div>
+
+          {/* Top Navbar */}
+          <header className="sticky top-0 z-40 bg-gradient-to-r from-indigo-950 via-slate-900 to-blue-950 border-b border-amber-400/30 text-white shadow-xl">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between h-20">
+                <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('vote')}>
+                  <div className="p-1.5 bg-white/15 rounded-2xl border border-amber-400/30 shadow-lg">
+                    <img src="https://iili.io/BxaPayB.png" alt="Logo SMPN 36" className="h-11 w-11 object-contain" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] sm:text-xs uppercase tracking-widest text-amber-300 font-extrabold">SMP NEGERI 36 SAMARINDA</div>
+                    <h1 className="text-base sm:text-lg font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-white to-sky-200">
+                      E-Voting Pemilihan Ketua OSIS
+                    </h1>
+                  </div>
+                </div>
+
+                <nav className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setActiveTab('vote')}
+                    className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center space-x-1.5 ${
+                      activeTab === 'vote' ? 'bg-amber-500 text-slate-950 shadow-md scale-105' : 'text-slate-200 hover:bg-white/10'
+                    }`}
+                  >
+                    <IconVote />
+                    <span>Voting</span>
+                  </button>
+
+                  {isAdminLoggedIn && (
+                    <button
+                      onClick={() => setActiveTab('quickcount')}
+                      className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center space-x-1.5 ${
+                        activeTab === 'quickcount' ? 'bg-cyan-500 text-white shadow-md scale-105' : 'text-slate-200 hover:bg-white/10'
+                      }`}
+                    >
+                      <IconBarChart />
+                      <span>Quick Count</span>
+                    </button>
+                  )}
+
+                  {isAdminLoggedIn ? (
+                    <button
+                      onClick={() => setActiveTab('admin')}
+                      className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center space-x-1.5 ${
+                        activeTab === 'admin' ? 'bg-emerald-600 text-white shadow-md scale-105' : 'text-slate-200 hover:bg-white/10'
+                      }`}
+                    >
+                      <IconShield />
+                      <span>Admin</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setActiveTab('admin')}
+                      className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center space-x-1.5 ${
+                        activeTab === 'admin' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-200 hover:bg-white/10'
+                      }`}
+                    >
+                      <IconLock />
+                      <span>Login Admin</span>
+                    </button>
+                  )}
+                </nav>
+              </div>
+            </div>
+          </header>
+
+          {/* Main Container */}
+          <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                <IconRefresh className="w-12 h-12 text-amber-500 animate-spin" />
+                <p className="text-sm font-bold text-slate-600 animate-pulse">Menghubungkan Database Google Sheets...</p>
+              </div>
+            ) : (
+              <div>
+                {/* TAB 1: STUDENT VOTING */}
+                {activeTab === 'vote' && (
+                  <div>
+                    {!authenticatedToken ? (
+                      <div className="max-w-md mx-auto my-12 bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-amber-200 overflow-hidden">
+                        <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-blue-950 p-6 text-center text-white">
+                          <h2 className="text-2xl font-black text-amber-300">Masukkan Token Akses</h2>
+                          <p className="text-xs text-slate-300 mt-1">Gunakan kode token resmi yang telah diberikan oleh panitia</p>
+                        </div>
+                        <form onSubmit={handleTokenSubmit} className="p-6 space-y-4">
+                          <div>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-indigo-950 mb-1">Kode Token Pemilih</label>
+                            <input
+                              type="text"
+                              value={inputToken}
+                              onChange={(e) => setInputToken(e.target.value.toUpperCase())}
+                              placeholder="Contoh: TOKEN-36-001"
+                              className="w-full px-4 py-3 bg-amber-50/50 border border-amber-300 rounded-xl text-sm font-mono font-bold tracking-widest text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 uppercase"
+                            />
+                          </div>
+
+                          {tokenError && (
+                            <div className="text-rose-600 text-xs bg-rose-50 p-3 rounded-xl border border-rose-200 font-semibold">
+                              ⚠️ {tokenError}
+                            </div>
+                          )}
+
+                          <button
+                            type="submit"
+                            className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black rounded-xl shadow-lg transition text-sm"
+                          >
+                            Masuk ke Surat Suara →
+                          </button>
+                        </form>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-blue-950 text-white p-6 rounded-2xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-amber-400/30">
+                          <div>
+                            <span className="text-xs font-bold uppercase text-amber-300">Token Terautentikasi:</span>
+                            <div className="font-mono font-bold text-amber-400 text-lg">{authenticatedToken}</div>
+                          </div>
+                          <div className="text-right">
+                            <h2 className="text-lg font-bold text-amber-300">Surat Suara Pemilihan OSIS</h2>
+                            <p className="text-xs text-slate-300">Pilih 1 Pasangan Calon Ketua OSIS Pilihan Anda</p>
+                          </div>
+                        </div>
+
+                        {/* Candidate Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          {candidates.map(cand => (
+                            <div key={cand.id} className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden flex flex-col justify-between hover:shadow-2xl transition">
+                              <div>
+                                <div className="bg-slate-900 p-3 text-center text-amber-400 font-mono font-black text-2xl">
+                                  No. {cand.nomorUrut}
+                                </div>
+                                <img src={cand.foto} alt={cand.nama} className="w-full h-64 object-cover" />
+                                <div className="p-5 space-y-3">
+                                  <h3 className="text-lg font-bold text-slate-900 leading-tight">{cand.nama}</h3>
+                                  <span className="inline-block text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                                    Kelas {cand.kelas}
+                                  </span>
+                                  <div className="text-xs text-slate-600 italic bg-amber-50/50 p-3 rounded-xl border border-amber-100">
+                                    "{cand.visi}"
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="p-5 bg-slate-50 border-t border-slate-100 space-y-2">
+                                <button
+                                  onClick={() => setDetailModalCandidate(cand)}
+                                  className="w-full py-2 text-xs font-bold text-indigo-900 bg-white border border-indigo-200 rounded-xl hover:bg-indigo-50 transition"
+                                >
+                                  Lihat Visi & Misi Lengkap
+                                </button>
+                                <button
+                                  onClick={() => { setSelectedCandidate(cand); setShowConfirmModal(true); }}
+                                  className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-extrabold rounded-xl shadow-md transition text-xs uppercase tracking-wider"
+                                >
+                                  Pilih Calon #{cand.nomorUrut}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB 2: QUICK COUNT */}
+                {activeTab === 'quickcount' && (
+                  <div className="space-y-6">
+                    <div className="p-6 rounded-2xl bg-white shadow-xl border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <h2 className="text-2xl font-black text-slate-900">Hasil Pemungutan Suara Real-Time</h2>
+                        <p className="text-xs text-slate-500">Tersinkron otomatis dari Google Sheets setiap 5 detik</p>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-xs font-mono font-bold text-cyan-600 flex items-center gap-1">
+                          <IconRefresh className={isRefreshing ? 'animate-spin text-amber-500' : ''} />
+                          {lastRefreshed.toLocaleTimeString('id-ID')} WIB
+                        </span>
+                        <button onClick={toggleFullscreen} className="px-4 py-2 bg-amber-500 text-slate-950 font-bold rounded-xl text-xs">
+                          {isFullscreen ? 'Keluar Fullscreen' : 'Layar Penuh'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="bg-white p-6 rounded-2xl shadow border border-slate-200 text-center">
+                        <span className="text-xs uppercase font-bold text-slate-400">Total Suara Masuk</span>
+                        <div className="text-4xl font-black font-mono text-blue-600 mt-1">{quickCountData.totalVotesCast}</div>
+                      </div>
+                      <div className="bg-white p-6 rounded-2xl shadow border border-slate-200 text-center">
+                        <span className="text-xs uppercase font-bold text-slate-400">Calon Unggul Sementara</span>
+                        <div className="text-xl font-bold text-amber-500 mt-1">
+                          {quickCountData.leading ? `#${quickCountData.leading.nomorUrut} - ${quickCountData.leading.nama}` : 'Belum Ada Suara'}
+                        </div>
+                      </div>
+                      <div className="bg-white p-6 rounded-2xl shadow border border-slate-200 text-center">
+                        <span className="text-xs uppercase font-bold text-slate-400">Status Database</span>
+                        <div className="text-lg font-bold text-emerald-600 mt-1">Google Sheets Connected</div>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar Chart */}
+                    <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200 space-y-6">
+                      <h3 className="font-bold text-lg">Perolehan Suara Kandidat</h3>
+                      <div className="space-y-5">
+                        {quickCountData.stats.map(cand => (
+                          <div key={cand.id} className="space-y-1.5">
+                            <div className="flex justify-between items-center text-sm font-bold">
+                              <span>#{cand.nomorUrut} {cand.nama} ({cand.kelas})</span>
+                              <span className="font-mono text-blue-600">{cand.voteCount} Suara ({cand.percentage}%)</span>
+                            </div>
+                            <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-1000"
+                                style={{ width: `${Math.max(cand.percentage, 0.5)}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 3: ADMIN PANEL */}
+                {activeTab === 'admin' && (
+                  <div>
+                    {!isAdminLoggedIn ? (
+                      <div className="max-w-md mx-auto my-12 bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+                        <div className="bg-slate-900 p-6 text-center text-white">
+                          <h2 className="text-xl font-bold">Login Administrator</h2>
+                          <p className="text-xs text-slate-400 mt-1">Akses pengelolaan kandidat & database token</p>
+                        </div>
+                        <form onSubmit={handleAdminLogin} className="p-6 space-y-4">
+                          <div>
+                            <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Username</label>
+                            <input
+                              type="text"
+                              value={adminUsername}
+                              onChange={(e) => setAdminUsername(e.target.value)}
+                              placeholder="admin"
+                              className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Password</label>
+                            <input
+                              type="password"
+                              value={adminPassword}
+                              onChange={(e) => setAdminPassword(e.target.value)}
+                              placeholder="••••••••"
+                              className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm"
+                            />
+                          </div>
+
+                          {adminLoginError && <div className="text-xs text-rose-600 font-bold">{adminLoginError}</div>}
+
+                          <button type="submit" className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl text-sm">
+                            Masuk Admin
+                          </button>
+                        </form>
+                      </div>
+                    ) : (
+                      <div className="space-y-8">
+                        <div className="bg-slate-900 text-white p-6 rounded-2xl flex justify-between items-center">
+                          <div>
+                            <h2 className="text-2xl font-bold">Panel Admin E-Voting</h2>
+                            <p className="text-xs text-slate-400">Terhubung langsung dengan Database Google Spreadsheet</p>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              if (confirm('Apakah Anda yakin ingin MERESET seluruh hasil voting di Google Sheets?')) {
+                                await callGAS('resetVotingData');
+                                loadSpreadsheetData(true);
+                              }
+                            }}
+                            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs"
+                          >
+                            Reset Seluruh Suara
+                          </button>
+                        </div>
+
+                        {/* Candidate CRUD */}
+                        <div className="bg-white p-6 rounded-2xl shadow border border-slate-200 space-y-4">
+                          <div className="flex justify-between items-center">
+                            <h3 className="font-bold text-lg">Kelola Data Kandidat</h3>
+                            <button
+                              onClick={() => {
+                                setEditingCandidate(null);
+                                setCandidateForm({ nomorUrut: String(candidates.length + 1).padStart(2, '0'), nama: '', kelas: '', foto: '', visi: '', misi: '' });
+                                setCandidateModalOpen(true);
+                              }}
+                              className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl text-xs flex items-center space-x-1"
+                            >
+                              <IconPlus /> <span>Tambah Kandidat</span>
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {candidates.map(cand => (
+                              <div key={cand.id} className="p-4 bg-slate-50 rounded-xl border flex items-center justify-between">
+                                <div>
+                                  <div className="font-mono font-bold text-xs text-amber-600">No. {cand.nomorUrut}</div>
+                                  <div className="font-bold text-sm">{cand.nama}</div>
+                                  <div className="text-xs text-slate-500">Kelas {cand.kelas}</div>
+                                </div>
+                                <button onClick={() => setCandidateToDelete(cand)} className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg">
+                                  <IconTrash />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Token Importer */}
+                        <div className="bg-white p-6 rounded-2xl shadow border border-slate-200 space-y-4">
+                          <h3 className="font-bold text-lg">Impor Token Pemilih ke Google Sheets</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 bg-slate-50 rounded-xl border space-y-2">
+                              <label className="block text-xs font-bold text-slate-600">Unggah File Excel / CSV Token</label>
+                              <input type="file" accept=".xlsx, .xls, .csv, .txt" onChange={handleFileUpload} className="text-xs text-slate-500" />
+                            </div>
+                            <div className="p-4 bg-slate-50 rounded-xl border space-y-2">
+                              <label className="block text-xs font-bold text-slate-600">Statistik Token</label>
+                              <div className="text-xs text-slate-600 font-mono">
+                                Total: {validTokens.length} | Terpakai: {usedTokens.length} | Sisa: {validTokens.length - usedTokens.length}
+                              </div>
+                            </div>
+                          </div>
+
+                          {gistStatusMessage.text && (
+                            <div className={`p-3 rounded-xl text-xs font-bold ${gistStatusMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                              {gistStatusMessage.text}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
+
+          {/* Confirm Vote Modal */}
+          {showConfirmModal && selectedCandidate && (
+            <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl max-w-md w-full p-6 text-center space-y-6 shadow-2xl">
+                <h3 className="text-xl font-black text-slate-900">Konfirmasi Pilihan Suara</h3>
+                <p className="text-sm text-slate-600">
+                  Apakah Anda yakin ingin memilih pasangan <br />
+                  <span className="font-extrabold text-blue-600 text-base">Nomor Urut {selectedCandidate.nomorUrut} - {selectedCandidate.nama}</span>?
+                </p>
+                <div className="flex space-x-3">
+                  <button onClick={() => setShowConfirmModal(false)} className="w-1/2 py-3 bg-slate-100 font-bold rounded-xl text-xs">Batal</button>
+                  <button
+                    onClick={handleVoteConfirm}
+                    disabled={isSubmittingVote}
+                    className="w-1/2 py-3 bg-blue-600 text-white font-extrabold rounded-xl text-xs shadow-lg"
+                  >
+                    {isSubmittingVote ? 'Menyimpan...' : 'Ya, Kirim Suara'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Success Modal */}
+          {showSuccessModal && (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl max-w-md w-full p-8 text-center space-y-4 shadow-2xl">
+                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full mx-auto flex items-center justify-center text-2xl">✓</div>
+                <h3 className="text-2xl font-black text-slate-900">Terima Kasih!</h3>
+                <p className="text-xs text-slate-600">Suara Anda telah tersimpan secara resmi di database Google Sheets.</p>
+                <div className="text-2xl font-mono font-bold text-blue-600 pt-2">00:0{countdown}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
