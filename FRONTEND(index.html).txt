@@ -1,0 +1,1997 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Voting Pemilihan Ketua OSIS - SMPN 36 Samarinda</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- React & ReactDOM CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel Standalone for JSX compilation in browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- SheetJS / XLSX CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.4);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 116, 139, 0.7);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased selection:bg-amber-400 selection:text-slate-950">
+    <div id="root"></div>
+
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useCallback } = React;
+
+
+        // Custom SVG Icon Wrapper Component
+        const Icon = ({ path, className = "w-5 h-5", viewBox = "0 0 24 24", fill = "none", stroke = "currentColor", strokeWidth = "2", ...props }) => (
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                viewBox={viewBox} 
+                fill={fill} 
+                stroke={stroke} 
+                strokeWidth={strokeWidth} 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                className={className} 
+                {...props}
+            >
+                {path}
+            </svg>
+        );
+
+
+        // Icon Definitions
+        const Vote = (p) => <Icon {...p} path={<><path d="m9 12 2 2 4-4"/><path d="M5 7c0-1.1.9-2 2-2h10a2 2 0 0 1 2 2v12H5V7Z"/><path d="M22 19H2"/></>} />;
+        const BarChart3 = (p) => <Icon {...p} path={<><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></>} />;
+        const Lock = (p) => <Icon {...p} path={<><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>} />;
+        const LogOut = (p) => <Icon {...p} path={<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></>} />;
+        const Plus = (p) => <Icon {...p} path={<><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></>} />;
+        const Edit3 = (p) => <Icon {...p} path={<><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></>} />;
+        const Trash2 = (p) => <Icon {...p} path={<><path d="3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></>} />;
+        const RefreshCw = (p) => <Icon {...p} path={<><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></>} />;
+        const CheckCircle2 = (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></>} />;
+        const AlertTriangle = (p) => <Icon {...p} path={<><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></>} />;
+        const Maximize2 = (p) => <Icon {...p} path={<><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></>} />;
+        const Minimize2 = (p) => <Icon {...p} path={<><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" x2="21" y1="10" y2="3"/><line x1="3" x2="10" y1="21" y2="14"/></>} />;
+        const Key = (p) => <Icon {...p} path={<><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></>} />;
+        const UserCheck = (p) => <Icon {...p} path={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></>} />;
+        const ShieldCheck = (p) => <Icon {...p} path={<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></>} />;
+        const Search = (p) => <Icon {...p} path={<><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></>} />;
+        const FileSpreadsheet = (p) => <Icon {...p} path={<><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M12 13v8"/></>} />;
+        const LinkIcon = (p) => <Icon {...p} path={<><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></>} />;
+        const Sparkles = (p) => <Icon {...p} path={<><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></>} />;
+        const School = (p) => <Icon {...p} path={<><path d="m4 6 8-4 8 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Z"/><path d="M10 22V12h4v10"/><path d="M12 6v2"/></>} />;
+        const X = (p) => <Icon {...p} path={<><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>} />;
+        const ChevronRight = (p) => <Icon {...p} path={<><path d="m9 18 6-6-6-6"/></>} />;
+        const Database = (p) => <Icon {...p} path={<><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></>} />;
+
+
+        const DEFAULT_GIST_URL = "https://gist.githubusercontent.com/ragielswd/46b2f33ad29c95e0fa7da6ea50fe365f/raw/82a6d7f1581cd9517f2ffa7852eff4bfe1003819/gistfile1.txt";
+
+
+        // Hybrid RPC Engine Bridge for Apps Script and Standalone External Hosting
+        const callBackend = (actionName, payload = {}) => {
+          return new Promise((resolve, reject) => {
+            // Mode A: Embedded in Google Apps Script (native google.script.run)
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+              const runner = google.script.run
+                .withSuccessHandler((res) => resolve(res))
+                .withFailureHandler((err) => reject(err));
+              
+              if (actionName === 'getInitialData') runner.getInitialData();
+              else if (actionName === 'getQuickCountData') runner.getQuickCountData();
+              else if (actionName === 'submitVote') runner.submitVote(payload.token, payload.candidateId);
+              else if (actionName === 'saveCandidate') runner.saveCandidate(payload.candidate);
+              else if (actionName === 'deleteCandidate') runner.deleteCandidate(payload.id);
+              else if (actionName === 'importTokens') runner.importTokens(payload.tokens);
+              else if (actionName === 'resetVotingData') runner.resetVotingData();
+              else reject(new Error("Fungsi backend tidak ditemukan: " + actionName));
+            } else {
+              // Mode B: Standalone HTML / Deployed External Web App URL
+              const apiUrl = window.GAS_API_URL || localStorage.getItem('gas_api_url');
+              if (!apiUrl) {
+                // Return offline fallback if API URL is not set
+                console.warn("Google Apps Script URL belum diatur.");
+                return resolve(null);
+              }
+
+
+              fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: actionName, payload: payload })
+              })
+                .then(res => res.json())
+                .then(data => resolve(data))
+                .catch(err => reject(err));
+            }
+          });
+        };
+
+
+        function App() {
+          // System Loading State
+          const [isLoadingData, setIsLoadingData] = useState(true);
+          const [backendStatus, setBackendStatus] = useState({ online: false, message: 'Menghubungkan ke Google Spreadsheet...' });
+          const [webAppUrlInput, setWebAppUrlInput] = useState(() => localStorage.getItem('gas_api_url') || '');
+
+
+          // Navigation State
+          const [activeTab, setActiveTab] = useState('vote'); 
+          const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+
+
+          // Core Persistent Data synced with Google Sheet
+          const [candidates, setCandidates] = useState([]);
+          const [validTokens, setValidTokens] = useState([]);
+          const [usedTokens, setUsedTokens] = useState([]);
+          const [votes, setVotes] = useState([]);
+
+
+          // Dynamic script loading state (XLSX parsing support)
+          const [xlsxLoaded] = useState(!!window.XLSX);
+
+
+          // Token Import Loading State & Messages
+          const [isImportingTokens, setIsImportingTokens] = useState(false);
+          const [importLoadingMessage, setImportLoadingMessage] = useState('Memproses token...');
+
+
+          // Admin Panel states
+          const [adminUsername, setAdminUsername] = useState('');
+          const [adminPassword, setAdminPassword] = useState('');
+          const [adminLoginError, setAdminLoginError] = useState('');
+          const [candidateModalOpen, setCandidateModalOpen] = useState(false);
+          const [editingCandidate, setEditingCandidate] = useState(null);
+          const [candidateForm, setCandidateForm] = useState({ nomorUrut: '', nama: '', kelas: '', foto: '', visi: '', misi: '' });
+          const [candidateToDelete, setCandidateToDelete] = useState(null);
+          const [gistUrlInput, setGistUrlInput] = useState(DEFAULT_GIST_URL);
+          const [isFetchingGist, setIsFetchingGist] = useState(false);
+          const [gistStatusMessage, setGistStatusMessage] = useState({ type: '', text: '' });
+          const [tokenSearch, setTokenSearch] = useState('');
+          const [tokenStatusFilter, setTokenStatusFilter] = useState('ALL');
+          const [showResetModal, setShowResetModal] = useState(false);
+          const [resetStep, setResetStep] = useState(1);
+          const [resetConfirmText, setResetConfirmText] = useState('');
+          const [resetStatusMsg, setResetStatusMsg] = useState('');
+
+
+          // Voting Session State
+          const [inputToken, setInputToken] = useState('');
+          const [authenticatedToken, setAuthenticatedToken] = useState(null);
+          const [tokenError, setTokenError] = useState('');
+          const [selectedCandidate, setSelectedCandidate] = useState(null);
+          const [showConfirmModal, setShowConfirmModal] = useState(false);
+          const [showSuccessModal, setShowSuccessModal] = useState(false);
+          const [countdown, setCountdown] = useState(4);
+          const [detailModalCandidate, setDetailModalCandidate] = useState(null);
+          const [isSubmittingVote, setIsSubmittingVote] = useState(false);
+
+
+          // Quick Count State
+          const [isFullscreen, setIsFullscreen] = useState(false);
+          const [lastRefreshed, setLastRefreshed] = useState(new Date());
+          const [currentTime, setCurrentTime] = useState(new Date());
+          const [hoveredPieSlice, setHoveredPieSlice] = useState(null);
+          const [isRefreshing, setIsRefreshing] = useState(false);
+
+
+          // Initial Load from Google Sheet Database
+          const loadInitialDataFromSheet = useCallback(async () => {
+            setIsLoadingData(true);
+            try {
+              const res = await callBackend('getInitialData');
+              if (res && res.success) {
+                setCandidates(res.candidates || []);
+                setValidTokens(res.validTokens || []);
+                setUsedTokens(res.usedTokens || []);
+                setVotes(res.votes || []);
+                setBackendStatus({ online: true, message: 'Terhubung ke Google Spreadsheet Database' });
+              } else {
+                setBackendStatus({ online: false, message: 'Google Sheet Database belum terkonfigurasi' });
+              }
+            } catch (err) {
+              console.error(err);
+              setBackendStatus({ online: false, message: 'Gagal terhubung ke Google Apps Script: ' + err.message });
+            } finally {
+              setIsLoadingData(false);
+            }
+          }, []);
+
+
+          useEffect(() => {
+            loadInitialDataFromSheet();
+          }, [loadInitialDataFromSheet]);
+
+
+          // Quick Count 5-Second Real-Time Polling from Google Sheet
+          useEffect(() => {
+            let timer;
+            if (activeTab === 'quickcount') {
+              timer = setInterval(async () => {
+                setIsRefreshing(true);
+                try {
+                  const res = await callBackend('getQuickCountData');
+                  if (res && res.success) {
+                    setVotes(res.votes || []);
+                    setLastRefreshed(new Date());
+                  }
+                } catch (e) {
+                  console.error("Gagal polling data quick count:", e);
+                } finally {
+                  setTimeout(() => setIsRefreshing(false), 800);
+                }
+              }, 5000);
+            }
+            return () => clearInterval(timer);
+          }, [activeTab]);
+
+
+          // Real-time Clock
+          useEffect(() => {
+            const clockTimer = setInterval(() => setCurrentTime(new Date()), 1000);
+            return () => clearInterval(clockTimer);
+          }, []);
+
+
+          // Countdown auto redirect after successful vote
+          useEffect(() => {
+            let timer;
+            if (showSuccessModal && countdown > 0) {
+              timer = setInterval(() => setCountdown(prev => prev - 1), 1000);
+            } else if (showSuccessModal && countdown === 0) {
+              setShowSuccessModal(false);
+              setAuthenticatedToken(null);
+              setInputToken('');
+              setCountdown(4);
+            }
+            return () => clearInterval(timer);
+          }, [showSuccessModal, countdown]);
+
+
+          // Fullscreen Listener
+          useEffect(() => {
+            const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+            document.addEventListener('fullscreenchange', handleFsChange);
+            return () => document.removeEventListener('fullscreenchange', handleFsChange);
+          }, []);
+
+
+          // Save API URL Config
+          const handleSaveApiUrl = (e) => {
+            e.preventDefault();
+            localStorage.setItem('gas_api_url', webAppUrlInput.trim());
+            window.GAS_API_URL = webAppUrlInput.trim();
+            loadInitialDataFromSheet();
+          };
+
+
+          // Voting Handlers
+          const handleTokenSubmit = (e) => {
+            e.preventDefault();
+            const cleanToken = inputToken.trim().toUpperCase();
+            if (!cleanToken) {
+              setTokenError('Silakan masukkan kode token terlebih dahulu.');
+              return;
+            }
+
+
+            if (!validTokens.includes(cleanToken)) {
+              setTokenError('Token tidak valid atau tidak terdaftar dalam database.');
+              return;
+            }
+
+
+            if (usedTokens.includes(cleanToken)) {
+              setTokenError('Token ini sudah digunakan untuk memilih dan tidak dapat dipakai kembali.');
+              return;
+            }
+
+
+            setAuthenticatedToken(cleanToken);
+            setTokenError('');
+          };
+
+
+          const handleVoteConfirm = async () => {
+            if (!selectedCandidate || !authenticatedToken || isSubmittingVote) return;
+
+
+            setIsSubmittingVote(true);
+            try {
+              const res = await callBackend('submitVote', {
+                token: authenticatedToken,
+                candidateId: selectedCandidate.id
+              });
+
+
+              if (res && res.success) {
+                setVotes(prev => [...prev, res.vote]);
+                setUsedTokens(prev => [...prev, authenticatedToken]);
+                setShowConfirmModal(false);
+                setShowSuccessModal(true);
+                setCountdown(4);
+              } else {
+                alert(res ? res.message : 'Gagal merekam suara ke Google Spreadsheet.');
+              }
+            } catch (err) {
+              alert('Terjadi kesalahan koneksi saat mengirim suara: ' + err.message);
+            } finally {
+              setIsSubmittingVote(false);
+            }
+          };
+
+
+          // Admin Login Handler
+          const handleAdminLogin = (e) => {
+            e.preventDefault();
+            if (adminUsername === 'admin' && adminPassword === 'osis3636') {
+              setIsAdminLoggedIn(true);
+              setAdminLoginError('');
+              setAdminUsername('');
+              setAdminPassword('');
+            } else {
+              setAdminLoginError('Username atau Password yang Anda masukkan salah!');
+            }
+          };
+
+
+          const handleAdminLogout = () => {
+            setIsAdminLoggedIn(false);
+            if (activeTab === 'admin' || activeTab === 'quickcount') {
+              setActiveTab('vote');
+            }
+          };
+
+
+          // Candidates CRUD Handlers
+          const handleOpenAddCandidate = () => {
+            setEditingCandidate(null);
+            setCandidateForm({
+              nomorUrut: String(candidates.length + 1).padStart(2, '0'),
+              nama: '',
+              kelas: '',
+              foto: '',
+              visi: '',
+              misi: ''
+            });
+            setCandidateModalOpen(true);
+          };
+
+
+          const handleOpenEditCandidate = (cand) => {
+            setEditingCandidate(cand);
+            setCandidateForm({
+              nomorUrut: cand.nomorUrut,
+              nama: cand.nama,
+              kelas: cand.kelas,
+              foto: cand.foto,
+              visi: cand.visi,
+              misi: Array.isArray(cand.misi) ? cand.misi.join('\n') : cand.misi
+            });
+            setCandidateModalOpen(true);
+          };
+
+
+          const handleSaveCandidate = async (e) => {
+            e.preventDefault();
+            const parsedMisi = candidateForm.misi
+              ? candidateForm.misi.split('\n').map((m) => m.trim()).filter((m) => m.length > 0)
+              : [];
+
+
+            const candDataObj = {
+              id: editingCandidate ? editingCandidate.id : `c_${Date.now()}`,
+              nomorUrut: candidateForm.nomorUrut,
+              nama: candidateForm.nama,
+              kelas: candidateForm.kelas,
+              foto: candidateForm.foto || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=600&auto=format&fit=crop',
+              visi: candidateForm.visi,
+              misi: parsedMisi
+            };
+
+
+            setIsLoadingData(true);
+            setCandidateModalOpen(false);
+
+
+            try {
+              const res = await callBackend('saveCandidate', { candidate: candDataObj });
+              if (res && res.success) {
+                setCandidates(res.candidates || []);
+              }
+            } catch (err) {
+              alert('Gagal menyimpan kandidat ke Google Sheets: ' + err.message);
+            } finally {
+              setIsLoadingData(false);
+            }
+          };
+
+
+          const confirmDeleteCandidate = async () => {
+            if (!candidateToDelete) return;
+            const targetId = candidateToDelete.id;
+            setCandidateToDelete(null);
+            setIsLoadingData(true);
+
+
+            try {
+              const res = await callBackend('deleteCandidate', { id: targetId });
+              if (res && res.success) {
+                setCandidates(res.candidates || []);
+              }
+            } catch (err) {
+              alert('Gagal menghapus kandidat: ' + err.message);
+            } finally {
+              setIsLoadingData(false);
+            }
+          };
+
+
+          // Token Importer & Google Sheet Sync
+          const handleSaveImportTokens = async (tokenArray) => {
+            setIsImportingTokens(true);
+            setImportLoadingMessage('Mengunggah & Memperbarui Database Google Sheet...');
+            try {
+              const res = await callBackend('importTokens', { tokens: tokenArray });
+              if (res && res.success) {
+                setValidTokens(res.validTokens || []);
+                setUsedTokens(res.usedTokens || []);
+                setGistStatusMessage({
+                  type: 'success',
+                  text: `Berhasil memperbarui database Google Sheet dengan ${res.validTokens.length} token baru!`
+                });
+              } else {
+                setGistStatusMessage({ type: 'error', text: 'Gagal memperbarui token di Spreadsheet.' });
+              }
+            } catch (err) {
+              setGistStatusMessage({ type: 'error', text: 'Gagal terhubung ke backend: ' + err.message });
+            } finally {
+              setIsImportingTokens(false);
+            }
+          };
+
+
+          const fetchTokensFromGist = async (url) => {
+            setIsFetchingGist(true);
+            setIsImportingTokens(true);
+            setImportLoadingMessage('Mengunduh data token dari Link Gist...');
+            setGistStatusMessage({ type: '', text: '' });
+            try {
+              const response = await fetch(url);
+              if (!response.ok) throw new Error('Gagal mengunduh file dari Gist URL.');
+              const text = await response.text();
+
+
+              const parsedTokens = text
+                .split(/[\n,\s]+/)
+                .map((t) => t.trim().toUpperCase())
+                .filter((t) => t.length > 0);
+
+
+              if (parsedTokens.length === 0) throw new Error('Tidak ada token valid yang ditemukan.');
+
+
+              await handleSaveImportTokens(parsedTokens);
+            } catch (err) {
+              setGistStatusMessage({ type: 'error', text: err.message || 'Terjadi kesalahan saat memuat token.' });
+              setIsImportingTokens(false);
+            } finally {
+              setIsFetchingGist(false);
+            }
+          };
+
+
+          const handleFileUpload = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+
+            setIsImportingTokens(true);
+            setImportLoadingMessage(`Membaca file "${file.name}"...`);
+
+
+            const reader = new FileReader();
+
+
+            if (file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
+              reader.onload = (evt) => {
+                try {
+                  const text = evt.target.result;
+                  const tokens = text.split(/[\n,\s]+/).map(t => t.trim().toUpperCase()).filter(t => t.length > 0);
+                  if (tokens.length > 0) {
+                    handleSaveImportTokens(tokens);
+                  } else {
+                    setGistStatusMessage({ type: 'error', text: 'Tidak ditemukan token valid dalam file.' });
+                    setIsImportingTokens(false);
+                  }
+                } catch (err) {
+                  setGistStatusMessage({ type: 'error', text: 'Gagal memproses file: ' + err.message });
+                  setIsImportingTokens(false);
+                }
+              };
+              reader.readAsText(file);
+            } else {
+              if (!window.XLSX) {
+                setIsImportingTokens(false);
+                setGistStatusMessage({ type: 'error', text: 'Modul parsing Excel sedang dimuat. Coba lagi.' });
+                return;
+              }
+              reader.onload = (evt) => {
+                try {
+                  const data = new Uint8Array(evt.target.result);
+                  const workbook = window.XLSX.read(data, { type: 'array' });
+                  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                  const jsonData = window.XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                  
+                  const extractedTokens = [];
+                  jsonData.forEach((row) => {
+                    if (Array.isArray(row)) {
+                      row.forEach((cell) => {
+                        if (cell) {
+                          const str = String(cell).trim().toUpperCase();
+                          if (str && str !== 'TOKEN' && str !== 'TOKENS' && str !== 'NO') {
+                            extractedTokens.push(str);
+                          }
+                        }
+                      });
+                    }
+                  });
+
+
+                  if (extractedTokens.length > 0) {
+                    handleSaveImportTokens(extractedTokens);
+                  } else {
+                    setGistStatusMessage({ type: 'error', text: 'Tidak ada token yang ditemukan di Excel.' });
+                    setIsImportingTokens(false);
+                  }
+                } catch (err) {
+                  setGistStatusMessage({ type: 'error', text: 'Gagal membaca Excel: ' + err.message });
+                  setIsImportingTokens(false);
+                }
+              };
+              reader.readAsArrayBuffer(file);
+            }
+            e.target.value = '';
+          };
+
+
+          const handleExportTokensToExcel = () => {
+            if (!window.XLSX) return;
+            const dataToExport = validTokens.map((token, index) => ({
+              'No': index + 1,
+              'Token Akses': token,
+              'Status Penggunaan': usedTokens.includes(token) ? 'Sudah Digunakan' : 'Belum Digunakan'
+            }));
+
+
+            const worksheet = window.XLSX.utils.json_to_sheet(dataToExport);
+            worksheet['!cols'] = [{ wch: 6 }, { wch: 24 }, { wch: 20 }];
+            const workbook = window.XLSX.utils.book_new();
+            window.XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Token');
+            window.XLSX.writeFile(workbook, `Data_Token_OSIS_SMPN36_${new Date().toISOString().split('T')[0]}.xlsx`);
+          };
+
+
+          const handleExecuteReset = async () => {
+            if (resetConfirmText.trim().toUpperCase() === 'RESET') {
+              setShowResetModal(false);
+              setIsLoadingData(true);
+              try {
+                const res = await callBackend('resetVotingData');
+                if (res && res.success) {
+                  setVotes([]);
+                  setUsedTokens([]);
+                  setResetStep(1);
+                  setResetConfirmText('');
+                  setGistStatusMessage({ type: 'success', text: 'Seluruh data pemungutan suara & status token berhasil di-reset di Spreadsheet!' });
+                }
+              } catch (err) {
+                alert('Gagal melakukan reset data: ' + err.message);
+              } finally {
+                setIsLoadingData(false);
+              }
+            } else {
+              setResetStatusMsg('Kata kunci konfirmasi tidak sesuai! Ketik RESET.');
+            }
+          };
+
+
+          const quickCountData = useMemo(() => {
+            const totalVotesCast = votes.length;
+            const counts = {};
+            candidates.forEach(c => counts[c.id] = 0);
+            votes.forEach(v => { if (counts[v.candidateId] !== undefined) counts[v.candidateId] += 1; });
+
+
+            const candidateStats = candidates.map((c) => {
+              const voteCount = counts[c.id] || 0;
+              const percentage = totalVotesCast > 0 ? ((voteCount / totalVotesCast) * 100).toFixed(1) : 0;
+              return { ...c, voteCount, percentage: parseFloat(percentage) };
+            });
+
+
+            let leading = null;
+            let maxVotes = -1;
+            let isTie = false;
+
+
+            candidateStats.forEach((c) => {
+              if (c.voteCount > maxVotes) {
+                maxVotes = c.voteCount;
+                leading = c;
+                isTie = false;
+              } else if (c.voteCount === maxVotes && maxVotes > 0) {
+                isTie = true;
+              }
+            });
+
+
+            return { candidateStats, totalVotesCast, leading: maxVotes > 0 && !isTie ? leading : null, isTie: isTie && maxVotes > 0 };
+          }, [candidates, votes]);
+
+
+          const toggleFullscreen = () => {
+            if (!document.fullscreenElement) {
+              document.documentElement.requestFullscreen().catch(() => {});
+              setIsFullscreen(true);
+            } else {
+              if (document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+                setIsFullscreen(false);
+              }
+            }
+          };
+
+
+          return (
+            <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 relative overflow-x-hidden ${
+              isFullscreen ? 'bg-slate-950 text-slate-100' : 'bg-gradient-to-br from-amber-50/80 via-sky-50/60 to-indigo-50/80 text-slate-800'
+            }`}>
+              {/* Watermark Sekolah */}
+              <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center opacity-[0.06] select-none overflow-hidden">
+                <img src="https://iili.io/BxaPayB.png" alt="Logo SMPN 36" className="w-[80vw] max-w-[650px] object-contain filter drop-shadow-2xl" />
+              </div>
+
+
+              {/* Top Navbar Header */}
+              <header className="sticky top-0 z-40 bg-gradient-to-r from-indigo-950 via-slate-900 to-blue-950 border-b border-amber-400/30 shadow-xl text-white backdrop-blur-md">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                  <div className="flex items-center justify-between h-20">
+                    <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('vote')}>
+                      <div className="relative flex items-center justify-center p-1.5 bg-white/15 rounded-2xl backdrop-blur-md border border-amber-400/30 shadow-lg hover:scale-105 transition-transform">
+                        <img src="https://iili.io/BxaPayB.png" alt="Logo SMP Negeri 36 Samarinda" className="h-12 w-12 object-contain" />
+                      </div>
+                      <div>
+                        <div className="text-xs uppercase tracking-widest text-amber-300 font-bold flex items-center gap-1 drop-shadow-sm">
+                          <School className="w-3.5 h-3.5 text-amber-400" />
+                          SMP NEGERI 36 SAMARINDA
+                        </div>
+                        <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-white to-sky-200 leading-tight">
+                          E-Voting Pemilihan Ketua OSIS
+                        </h1>
+                      </div>
+                    </div>
+
+
+                    <nav className="flex items-center space-x-1 sm:space-x-2">
+                      <button
+                        onClick={() => setActiveTab('vote')}
+                        className={`flex items-center space-x-2 px-3.5 sm:px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm ${
+                          activeTab === 'vote'
+                            ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-amber-500/30 shadow-md scale-105'
+                            : 'text-slate-200 hover:text-amber-300 hover:bg-white/10'
+                        }`}
+                      >
+                        <Vote className="w-4 h-4 text-amber-950 sm:text-amber-400" />
+                        <span className="hidden sm:inline">Beranda / Vote</span>
+                        <span className="sm:hidden">Vote</span>
+                      </button>
+
+
+                      {isAdminLoggedIn && (
+                        <button
+                          onClick={() => setActiveTab('quickcount')}
+                          className={`flex items-center space-x-2 px-3.5 sm:px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                            activeTab === 'quickcount' ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md scale-105' : 'text-slate-200 hover:text-cyan-300 hover:bg-white/10'
+                          }`}
+                        >
+                          <BarChart3 className="w-4 h-4 text-cyan-300" />
+                          <span>Quick Count</span>
+                        </button>
+                      )}
+
+
+                      {isAdminLoggedIn ? (
+                        <div className="flex items-center space-x-1">
+                          <button
+                            onClick={() => setActiveTab('admin')}
+                            className={`flex items-center space-x-2 px-3.5 sm:px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                              activeTab === 'admin' ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md scale-105' : 'text-slate-200 hover:text-emerald-300 hover:bg-white/10'
+                            }`}
+                          >
+                            <ShieldCheck className="w-4 h-4 text-emerald-300" />
+                            <span>Panel Admin</span>
+                          </button>
+                          <button onClick={handleAdminLogout} title="Keluar Admin" className="p-2 text-slate-300 hover:text-rose-400 hover:bg-white/10 rounded-xl transition">
+                            <LogOut className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setActiveTab('admin')}
+                          className={`flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                            activeTab === 'admin' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md' : 'text-slate-200 hover:text-amber-300 hover:bg-white/10'
+                          }`}
+                        >
+                          <Lock className="w-4 h-4 text-amber-300" />
+                          <span>Login Admin</span>
+                        </button>
+                      )}
+                    </nav>
+                  </div>
+                </div>
+              </header>
+
+
+              {/* Status Bar Google Spreadsheet */}
+              {!backendStatus.online && (
+                <div className="bg-amber-500 text-slate-950 px-4 py-2 text-xs font-bold flex flex-col sm:flex-row items-center justify-between gap-2 shadow-md">
+                  <div className="flex items-center space-x-2">
+                    <Database className="w-4 h-4 animate-bounce" />
+                    <span>{backendStatus.message}</span>
+                  </div>
+                  <form onSubmit={handleSaveApiUrl} className="flex items-center space-x-2 w-full sm:w-auto">
+                    <input
+                      type="text"
+                      placeholder="Masukkan Apps Script Web App URL..."
+                      value={webAppUrlInput}
+                      onChange={(e) => setWebAppUrlInput(e.target.value)}
+                      className="px-2 py-1 text-xs bg-white border border-amber-600 rounded focus:outline-none text-slate-800 w-full sm:w-64"
+                    />
+                    <button type="submit" className="px-3 py-1 bg-slate-900 text-white rounded text-xs font-bold hover:bg-slate-800">
+                      Simpan & Sync
+                    </button>
+                  </form>
+                </div>
+              )}
+
+
+              {/* Main Container */}
+              <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+                {isLoadingData ? (
+                  <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                    <RefreshCw className="w-10 h-10 text-amber-500 animate-spin" />
+                    <p className="text-sm font-bold text-slate-600">Memuat data dari Google Spreadsheet...</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* TAB VOTE */}
+                    {activeTab === 'vote' && (
+                      <div>
+                        {!authenticatedToken ? (
+                          <div className="max-w-md mx-auto my-12">
+                            <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl border border-amber-200/80 overflow-hidden">
+                              <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-blue-900 px-6 py-8 text-center text-white relative">
+                                <div className="w-16 h-16 mx-auto bg-amber-400/20 text-amber-300 rounded-2xl flex items-center justify-center border border-amber-400/40 mb-3 shadow-inner">
+                                  <Key className="w-8 h-8" />
+                                </div>
+                                <h2 className="text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-400">
+                                  Masukkan Token Akses
+                                </h2>
+                                <p className="text-xs text-slate-200 mt-1">Masukkan kode token unik yang diberikan oleh panitia pemilihan</p>
+                              </div>
+
+
+                              <form onSubmit={handleTokenSubmit} className="p-6 space-y-4">
+                                <div>
+                                  <label className="block text-xs font-bold uppercase tracking-wider text-indigo-900 mb-1.5">
+                                    Token Akses Pemilih
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={inputToken}
+                                    onChange={(e) => {
+                                      setInputToken(e.target.value.toUpperCase());
+                                      setTokenError('');
+                                    }}
+                                    placeholder="Contoh: TOKEN-36-001"
+                                    className="w-full px-4 py-3 bg-amber-50/50 border border-amber-300/80 rounded-xl text-sm font-mono font-bold tracking-widest text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white uppercase placeholder:normal-case placeholder:font-normal placeholder:tracking-normal transition"
+                                  />
+                                </div>
+
+
+                                {tokenError && (
+                                  <div className="text-rose-700 text-xs bg-rose-50 p-3 rounded-xl border border-rose-200 font-semibold flex items-center space-x-2">
+                                    <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+                                    <span>{tokenError}</span>
+                                  </div>
+                                )}
+
+
+                                <button
+                                  type="submit"
+                                  className="w-full py-3.5 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black rounded-xl shadow-lg shadow-amber-500/30 transition text-sm flex items-center justify-center space-x-2 transform hover:-translate-y-0.5"
+                                >
+                                  <span>Masuk ke Surat Suara</span>
+                                  <ChevronRight className="w-4 h-4" />
+                                </button>
+
+
+                                <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200 text-center">
+                                  <p className="text-[11px] text-amber-900 font-medium">
+                                    🔒 Setiap token terverifikasi di Google Sheet & hanya dapat digunakan <span className="font-bold text-amber-950">1 kali</span>.
+                                  </p>
+                                </div>
+                              </form>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-6">
+                            <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-blue-950 text-white p-6 rounded-2xl shadow-xl border border-amber-400/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+                              <div className="flex items-center space-x-3">
+                                <div className="p-2.5 bg-emerald-500/20 text-emerald-300 rounded-xl border border-emerald-400/40">
+                                  <UserCheck className="w-6 h-6" />
+                                </div>
+                                <div>
+                                  <span className="text-xs uppercase tracking-wider font-semibold text-amber-300">Status Otentikasi:</span>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="font-mono font-bold text-amber-400 text-sm sm:text-base">{authenticatedToken}</span>
+                                    <span className="bg-emerald-500/20 text-emerald-300 text-xs px-2.5 py-0.5 rounded-full border border-emerald-500/40 font-bold">
+                                      Token Valid
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+
+                              <div className="text-center sm:text-right">
+                                <h2 className="text-lg font-extrabold text-amber-300">Surat Suara Elektronik</h2>
+                                <p className="text-xs text-slate-200">Silakan pelajari visi-misi dan pilih Calon Ketua OSIS pilihan Anda</p>
+                              </div>
+                            </div>
+
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+                              {candidates.map((cand) => (
+                                <div 
+                                  key={cand.id} 
+                                  className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl border border-amber-200/80 overflow-hidden flex flex-col hover:border-amber-400 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300"
+                                >
+                                  <div className="bg-gradient-to-r from-slate-900 to-indigo-950 p-4 text-center text-white relative">
+                                    <div className="absolute top-3 left-3 bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-xs px-2.5 py-1 rounded-lg shadow-md uppercase tracking-wider">
+                                      Nomor Urut
+                                    </div>
+                                    <span className="text-4xl font-black text-amber-400 font-mono tracking-wider drop-shadow-md">
+                                      {cand.nomorUrut}
+                                    </span>
+                                  </div>
+
+
+                                  <div className="relative h-72 overflow-hidden bg-slate-100 border-b border-amber-100">
+                                    <img src={cand.foto} alt={cand.nama} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-950/90 via-slate-950/50 to-transparent p-4">
+                                      <h3 className="text-xl font-bold text-white leading-tight drop-shadow">{cand.nama}</h3>
+                                      <span className="inline-block mt-1 bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 text-xs font-black px-3 py-0.5 rounded-full shadow">
+                                        Kelas {cand.kelas}
+                                      </span>
+                                    </div>
+                                  </div>
+
+
+                                  <div className="p-6 flex-grow space-y-4 bg-white/80">
+                                    <div>
+                                      <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900 mb-1">Visi Utama:</h4>
+                                      <p className="text-xs sm:text-sm text-slate-700 italic line-clamp-3 bg-amber-50/60 p-3.5 rounded-xl border border-amber-200/60">
+                                        "{cand.visi}"
+                                      </p>
+                                    </div>
+                                  </div>
+
+
+                                  <div className="p-6 bg-amber-50/40 border-t border-amber-100 space-y-2.5">
+                                    <button
+                                      onClick={() => setDetailModalCandidate(cand)}
+                                      className="w-full py-2.5 px-4 bg-white text-indigo-900 hover:bg-indigo-50 border border-indigo-200 font-bold rounded-xl text-xs transition shadow-sm flex items-center justify-center space-x-1"
+                                    >
+                                      <span>Lihat Visi & Misi Lengkap</span>
+                                    </button>
+
+
+                                    <button
+                                      onClick={() => {
+                                        setSelectedCandidate(cand);
+                                        setShowConfirmModal(true);
+                                      }}
+                                      className="w-full py-3.5 px-4 bg-gradient-to-r from-indigo-700 via-blue-600 to-indigo-800 hover:from-indigo-800 hover:to-blue-700 text-white font-extrabold rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center space-x-2 text-sm transform hover:-translate-y-0.5"
+                                    >
+                                      <CheckCircle2 className="w-5 h-5 text-amber-400" />
+                                      <span>Pilih Calon Ketua OSIS #{cand.nomorUrut}</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+
+                    {/* TAB QUICK COUNT */}
+                    {activeTab === 'quickcount' && (
+                      <div className="space-y-8">
+                        <div className={`p-6 rounded-2xl border shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden ${
+                          isFullscreen ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white/90 backdrop-blur-md border-amber-200/80 text-slate-800'
+                        }`}>
+                          {isRefreshing && <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-amber-400 to-emerald-400 animate-pulse"></div>}
+
+
+                          <div className="flex items-center space-x-3">
+                            <div className={`p-3 rounded-2xl border transition-all duration-300 ${
+                              isRefreshing ? 'bg-cyan-500 text-white border-cyan-400 scale-110 shadow-lg shadow-cyan-500/50' : 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20'
+                            }`}>
+                              <BarChart3 className={`w-8 h-8 ${isRefreshing ? 'animate-bounce' : ''}`} />
+                            </div>
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-xs uppercase font-bold tracking-widest text-cyan-600 dark:text-cyan-400">Live Quick Count</span>
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border transition-all duration-300 ${
+                                  isRefreshing ? 'bg-amber-400 text-slate-950 border-amber-300 font-extrabold shadow-sm' : 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30 animate-pulse'
+                                }`}>
+                                  {isRefreshing ? <span className="flex items-center gap-1"><RefreshCw className="w-3 h-3 animate-spin" /> Memperbarui Data Google Sheet...</span> : '• Sync Google Sheet (5s)'}
+                                </span>
+                              </div>
+                              <h2 className="text-xl sm:text-2xl font-black">Hasil Pemungutan Suara Real-Time</h2>
+                            </div>
+                          </div>
+
+
+                          <div className="flex items-center space-x-3">
+                            <div className="hidden md:flex flex-col items-end px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+                              <span className="text-[10px] uppercase font-bold text-slate-400">Penarikan Data Terakhir</span>
+                              <span className="text-xs font-mono font-bold text-cyan-500 flex items-center gap-1">
+                                <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin text-amber-400' : ''}`} />
+                                {lastRefreshed.toLocaleTimeString('id-ID')} WIB
+                              </span>
+                            </div>
+
+
+                            <button
+                              onClick={toggleFullscreen}
+                              className="flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold rounded-xl shadow-md transition text-xs sm:text-sm"
+                            >
+                              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                              <span>{isFullscreen ? 'Keluar Layar Penuh' : 'Layar Penuh (Fullscreen)'}</span>
+                            </button>
+                          </div>
+                        </div>
+
+
+                        {/* Metrics */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div className={`p-5 rounded-2xl border shadow-sm ${isFullscreen ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                            <div className="flex items-center justify-between text-slate-400 mb-2">
+                              <span className="text-xs font-bold uppercase tracking-wider">Total Suara Masuk</span>
+                              <Vote className="w-5 h-5 text-blue-500" />
+                            </div>
+                            <div className="text-3xl font-black font-mono text-blue-600">{quickCountData.totalVotesCast}</div>
+                            <p className="text-xs text-slate-500 mt-1">Tercatat di Sheet 'Votes'</p>
+                          </div>
+
+
+                          <div className={`p-5 rounded-2xl border shadow-sm ${isFullscreen ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                            <div className="flex items-center justify-between text-slate-400 mb-2">
+                              <span className="text-xs font-bold uppercase tracking-wider">Penarikan Terakhir</span>
+                              <RefreshCw className={`w-5 h-5 text-cyan-500 ${isRefreshing ? 'animate-spin text-amber-400' : ''}`} />
+                            </div>
+                            <div className="text-3xl font-black font-mono text-cyan-500">{lastRefreshed.toLocaleTimeString('id-ID')}</div>
+                            <p className="text-xs text-slate-500 mt-1">Auto-refresh tiap 5 detik</p>
+                          </div>
+
+
+                          <div className={`p-5 rounded-2xl border shadow-sm ${isFullscreen ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                            <div className="flex items-center justify-between text-slate-400 mb-2">
+                              <span className="text-xs font-bold uppercase tracking-wider">Waktu Saat Ini</span>
+                              <RefreshCw className="w-5 h-5 text-emerald-500 animate-spin" style={{ animationDuration: '10s' }} />
+                            </div>
+                            <div className="text-3xl font-black font-mono text-emerald-500">{currentTime.toLocaleTimeString('id-ID')}</div>
+                            <p className="text-xs text-slate-500 mt-1 capitalize truncate">
+                              {currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                            </p>
+                          </div>
+
+
+                          <div className={`p-5 rounded-2xl border shadow-sm ${isFullscreen ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                            <div className="flex items-center justify-between text-slate-400 mb-2">
+                              <span className="text-xs font-bold uppercase tracking-wider">Calon Unggul</span>
+                              <Sparkles className="w-5 h-5 text-purple-500" />
+                            </div>
+                            {quickCountData.leading ? (
+                              <div>
+                                <div className="text-lg font-bold text-amber-400 truncate">
+                                  #{quickCountData.leading.nomorUrut} - {quickCountData.leading.nama}
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  {quickCountData.leading.voteCount} suara ({quickCountData.leading.percentage}%)
+                                </p>
+                              </div>
+                            ) : quickCountData.isTie ? (
+                              <div className="text-sm font-bold text-amber-400">Suara Seimbang (Seri)</div>
+                            ) : (
+                              <div className="text-sm font-semibold text-slate-400">Belum ada suara masuk</div>
+                            )}
+                          </div>
+                        </div>
+
+
+                        {/* Visual Charts */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          {/* Bar Progress */}
+                          <div className={`p-6 sm:p-8 rounded-2xl border shadow-xl flex flex-col justify-between ${
+                            isFullscreen ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+                          }`}>
+                            <div>
+                              <h3 className="text-lg font-bold mb-6 flex items-center justify-between">
+                                <span>Grafik Batang Perolehan Suara</span>
+                                <span className="text-xs font-normal text-slate-400">Total: {quickCountData.totalVotesCast} Suara</span>
+                              </h3>
+
+
+                              <div className="space-y-6">
+                                {quickCountData.candidateStats.map((cand, idx) => {
+                                  const colors = ['bg-blue-600', 'bg-emerald-600', 'bg-amber-500', 'bg-purple-600', 'bg-indigo-600'];
+                                  const barColor = colors[idx % colors.length];
+
+
+                                  return (
+                                    <div key={cand.id} className="space-y-2">
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-sm font-semibold">
+                                        <div className="flex items-center space-x-3">
+                                          <span className="w-8 h-8 rounded-lg bg-slate-950 text-amber-400 font-mono font-bold flex items-center justify-center text-sm border border-slate-700">
+                                            {cand.nomorUrut}
+                                          </span>
+                                          <span className="font-bold text-base">{cand.nama} <span className="text-xs font-normal text-slate-400">({cand.kelas})</span></span>
+                                        </div>
+                                        <div className="flex items-center space-x-3 text-right">
+                                          <span className="text-slate-400 text-xs">{cand.voteCount} Suara</span>
+                                          <span className="text-xl font-mono font-extrabold text-blue-500 w-16">{cand.percentage}%</span>
+                                        </div>
+                                      </div>
+
+
+                                      <div className="w-full h-5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-200 dark:border-slate-700 flex">
+                                        <div 
+                                          className={`h-full rounded-full transition-all duration-1000 ${barColor}`}
+                                          style={{ width: `${Math.max(cand.percentage, 0.5)}%` }}
+                                        ></div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+
+
+                          {/* Pie Chart */}
+                          <div className={`p-6 sm:p-8 rounded-2xl border shadow-xl flex flex-col justify-between ${
+                            isFullscreen ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+                          }`}>
+                            <div>
+                              <h3 className="text-lg font-bold mb-4 flex items-center justify-between">
+                                <span>Diagram Pie Persentase Suara</span>
+                                <span className="text-xs font-normal text-slate-400">Proporsi (%)</span>
+                              </h3>
+
+
+                              {quickCountData.totalVotesCast === 0 ? (
+                                <div className="h-64 flex flex-col items-center justify-center text-slate-400 text-center space-y-3">
+                                  <div className="w-28 h-28 rounded-full border-4 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center">
+                                    <Vote className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+                                  </div>
+                                  <p className="text-xs font-semibold">Diagram Pie akan tampil setelah ada suara masuk.</p>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col sm:flex-row items-center justify-center gap-6 py-2">
+                                  <div className="relative w-56 h-56 shrink-0">
+                                    <svg viewBox="0 0 220 220" className="w-full h-full transform -rotate-90">
+                                      {(() => {
+                                        const colors = ['#2563eb', '#10b981', '#f59e0b', '#9333ea', '#6366f1', '#ec4899'];
+                                        let cumPercent = 0;
+                                        const total = quickCountData.totalVotesCast;
+
+
+                                        return quickCountData.candidateStats.map((cand, idx) => {
+                                          const percent = total > 0 ? cand.voteCount / total : 0;
+                                          if (percent <= 0) return null;
+
+
+                                          const startAngle = cumPercent * 2 * Math.PI;
+                                          cumPercent += percent;
+                                          const endAngle = cumPercent * 2 * Math.PI;
+
+
+                                          const cx = 110, cy = 110, R = 95, r = 52;
+
+
+                                          const x1 = cx + R * Math.cos(startAngle);
+                                          const y1 = cy + R * Math.sin(startAngle);
+                                          const x2 = cx + R * Math.cos(endAngle);
+                                          const y2 = cy + R * Math.sin(endAngle);
+
+
+                                          const x3 = cx + r * Math.cos(endAngle);
+                                          const y3 = cy + r * Math.sin(endAngle);
+                                          const x4 = cx + r * Math.cos(startAngle);
+                                          const y4 = cy + r * Math.sin(startAngle);
+
+
+                                          const largeArc = percent > 0.5 ? 1 : 0;
+                                          const color = colors[idx % colors.length];
+                                          const isHovered = hoveredPieSlice === cand.id;
+
+
+                                          let d = `M ${x1} ${y1} A ${R} ${R} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${r} ${r} 0 ${largeArc} 0 ${x4} ${y4} Z`;
+                                          if (percent >= 0.999) {
+                                            d = `M ${cx - R} ${cy} A ${R} ${R} 0 1 0 ${cx + R} ${cy} A ${R} ${R} 0 1 0 ${cx - R} ${cy} M ${cx - r} ${cy} A ${r} ${r} 0 1 1 ${cx + r} ${cy} A ${r} ${r} 0 1 1 ${cx - r} ${cy}`;
+                                          }
+
+
+                                          return (
+                                            <path
+                                              key={cand.id}
+                                              d={d}
+                                              fill={color}
+                                              opacity={hoveredPieSlice === null || isHovered ? 1 : 0.4}
+                                              className="transition-all duration-300 cursor-pointer hover:scale-105 origin-center"
+                                              onMouseEnter={() => setHoveredPieSlice(cand.id)}
+                                              onMouseLeave={() => setHoveredPieSlice(null)}
+                                            >
+                                              <title>{`No. ${cand.nomorUrut} - ${cand.nama}: ${cand.voteCount} Suara (${cand.percentage}%)`}</title>
+                                            </path>
+                                          );
+                                        });
+                                      })()}
+                                    </svg>
+
+
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                                      <span className="text-2xl font-black font-mono text-blue-500">
+                                        {quickCountData.totalVotesCast}
+                                      </span>
+                                      <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                                        Suara
+                                      </span>
+                                    </div>
+                                  </div>
+
+
+                                  <div className="space-y-3 w-full sm:w-auto flex-grow">
+                                    {quickCountData.candidateStats.map((cand, idx) => {
+                                      const colors = ['bg-blue-600', 'bg-emerald-600', 'bg-amber-500', 'bg-purple-600', 'bg-indigo-600'];
+                                      const colorClass = colors[idx % colors.length];
+                                      const isHovered = hoveredPieSlice === cand.id;
+
+
+                                      return (
+                                        <div 
+                                          key={cand.id}
+                                          onMouseEnter={() => setHoveredPieSlice(cand.id)}
+                                          onMouseLeave={() => setHoveredPieSlice(null)}
+                                          className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                                            isHovered ? 'bg-blue-500/10 border-blue-500/40 shadow-sm scale-[1.02]' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/60'
+                                          }`}
+                                        >
+                                          <div className="flex items-center space-x-2.5 min-w-0">
+                                            <span className={`w-3.5 h-3.5 rounded-full ${colorClass} shrink-0`}></span>
+                                            <div className="min-w-0">
+                                              <p className="text-xs font-bold truncate leading-tight">
+                                                #{cand.nomorUrut} - {cand.nama}
+                                              </p>
+                                              <p className="text-[10px] text-slate-400">Kelas {cand.kelas}</p>
+                                            </div>
+                                          </div>
+                                          <div className="text-right shrink-0">
+                                            <span className="text-xs font-extrabold font-mono text-blue-500">{cand.percentage}%</span>
+                                            <p className="text-[10px] text-slate-400">{cand.voteCount} sra</p>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+
+                        {/* Candidate Cards Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          {quickCountData.candidateStats.map((cand) => (
+                            <div 
+                              key={cand.id}
+                              className={`p-6 rounded-2xl border flex items-center space-x-4 shadow-md ${
+                                isFullscreen ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+                              }`}
+                            >
+                              <img src={cand.foto} alt={cand.nama} className="w-20 h-20 rounded-xl object-cover border-2 border-slate-300 flex-shrink-0" />
+                              <div className="min-w-0 flex-grow">
+                                <span className="text-xs font-bold text-amber-500 uppercase tracking-wider">Nomor Urut {cand.nomorUrut}</span>
+                                <h4 className="font-bold truncate text-base leading-tight">{cand.nama}</h4>
+                                <p className="text-xs text-slate-400 mb-2">Kelas {cand.kelas}</p>
+                                <div className="flex items-baseline space-x-2">
+                                  <span className="text-2xl font-black font-mono text-blue-600">{cand.voteCount}</span>
+                                  <span className="text-xs text-slate-400">Suara ({cand.percentage}%)</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+
+                    {/* TAB ADMIN */}
+                    {activeTab === 'admin' && (
+                      <div>
+                        {!isAdminLoggedIn ? (
+                          <div className="max-w-md mx-auto my-12">
+                            <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+                              <div className="bg-slate-900 px-6 py-8 text-center text-white relative">
+                                <div className="w-14 h-14 mx-auto bg-blue-600/20 text-blue-400 rounded-2xl flex items-center justify-center border border-blue-500/30 mb-3">
+                                  <Lock className="w-7 h-7" />
+                                </div>
+                                <h2 className="text-2xl font-bold">Login Admin Panel</h2>
+                                <p className="text-xs text-slate-400 mt-1">Masuk untuk mengelola data Calon Ketua OSIS & Token Pemilih</p>
+                              </div>
+
+
+                              <form onSubmit={handleAdminLogin} className="p-6 space-y-4">
+                                <div>
+                                  <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Username Admin</label>
+                                  <input 
+                                    type="text"
+                                    value={adminUsername}
+                                    onChange={(e) => setAdminUsername(e.target.value)}
+                                    placeholder="admin"
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-blue-600"
+                                  />
+                                </div>
+
+
+                                <div>
+                                  <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Password</label>
+                                  <input 
+                                    type="password"
+                                    value={adminPassword}
+                                    onChange={(e) => setAdminPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-blue-600"
+                                  />
+                                </div>
+
+
+                                {adminLoginError && (
+                                  <div className="text-rose-600 text-xs bg-rose-50 p-3 rounded-lg border border-rose-200 font-semibold">
+                                    {adminLoginError}
+                                  </div>
+                                )}
+
+
+                                <button
+                                  type="submit"
+                                  className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow transition text-sm"
+                                >
+                                  Masuk Administrator
+                                </button>
+                              </form>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-8">
+                            <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-lg border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                              <div>
+                                <span className="text-xs uppercase font-bold tracking-widest text-emerald-400">Admin Mode Active</span>
+                                <h2 className="text-2xl font-extrabold">Panel Pengelolaan Pemilihan Ketua OSIS</h2>
+                                <p className="text-xs text-slate-300 mt-1">Terhubung langsung dengan Database Google Spreadsheet.</p>
+                              </div>
+
+
+                              <div className="flex items-center space-x-3">
+                                <button
+                                  onClick={() => {
+                                    setResetStep(1);
+                                    setResetConfirmText('');
+                                    setResetStatusMsg('');
+                                    setShowResetModal(true);
+                                  }}
+                                  className="flex items-center space-x-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow transition"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  <span>Reset Suara & Token</span>
+                                </button>
+
+
+                                <button
+                                  onClick={handleAdminLogout}
+                                  className="flex items-center space-x-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs rounded-xl transition"
+                                >
+                                  <LogOut className="w-4 h-4" />
+                                  <span>Keluar Admin</span>
+                                </button>
+                              </div>
+                            </div>
+
+
+                            {/* SECTION A: CANDIDATES CRUD */}
+                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                                <div>
+                                  <h3 className="text-lg font-bold text-slate-900">Data Calon Ketua OSIS</h3>
+                                  <p className="text-xs text-slate-500">Tersimpan di Sheet 'Candidates'</p>
+                                </div>
+                                <button
+                                  onClick={handleOpenAddCandidate}
+                                  className="flex items-center space-x-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow-md transition"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                  <span>Tambah Calon Ketua OSIS</span>
+                                </button>
+                              </div>
+
+
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {candidates.map((cand) => (
+                                  <div key={cand.id} className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50 flex flex-col justify-between">
+                                    <div className="p-4 space-y-3">
+                                      <div className="flex items-center justify-between">
+                                        <span className="bg-slate-900 text-amber-400 font-mono font-bold text-xs px-2.5 py-1 rounded">
+                                          No. Urut {cand.nomorUrut}
+                                        </span>
+                                        <span className="text-xs font-semibold text-slate-500">Kelas {cand.kelas}</span>
+                                      </div>
+                                      
+                                      <div className="flex items-center space-x-3">
+                                        <img src={cand.foto} alt={cand.nama} className="w-14 h-14 rounded-lg object-cover border" />
+                                        <div className="min-w-0 flex-grow">
+                                          <h4 className="font-bold text-slate-900 text-sm truncate">{cand.nama}</h4>
+                                          <p className="text-xs text-slate-500 line-clamp-1">Visi: {cand.visi}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+
+
+                                    <div className="p-3 bg-white border-t border-slate-200 flex items-center justify-end space-x-2">
+                                      <button
+                                        onClick={() => handleOpenEditCandidate(cand)}
+                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition text-xs flex items-center space-x-1 font-semibold"
+                                      >
+                                        <Edit3 className="w-4 h-4" />
+                                        <span>Edit</span>
+                                      </button>
+                                      <button
+                                        onClick={() => setCandidateToDelete(cand)}
+                                        className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition text-xs flex items-center space-x-1 font-semibold"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                        <span>Hapus</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+
+                            {/* SECTION B: TOKEN MANAGEMENT & IMPORTER */}
+                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+                                <div>
+                                  <h3 className="text-lg font-bold text-slate-900">Manajemen & Impor Token Pemilih</h3>
+                                  <p className="text-xs text-slate-500">
+                                    Impor token akan <span className="font-semibold text-rose-600">mengganti seluruh database token</span> di Sheet 'Tokens'.
+                                  </p>
+                                </div>
+
+
+                                <button
+                                  onClick={handleExportTokensToExcel}
+                                  disabled={!xlsxLoaded}
+                                  className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md transition shrink-0 disabled:opacity-50"
+                                >
+                                  <FileSpreadsheet className="w-4 h-4" />
+                                  <span>Eksport Token ke Excel</span>
+                                </button>
+                              </div>
+
+
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                  <span className="text-xs font-bold text-slate-500 uppercase">Total Token Dimuat</span>
+                                  <div className="text-2xl font-black font-mono text-slate-900">{validTokens.length}</div>
+                                </div>
+                                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+                                  <span className="text-xs font-bold text-emerald-700 uppercase">Token Sudah Digunakan</span>
+                                  <div className="text-2xl font-black font-mono text-emerald-700">{usedTokens.length}</div>
+                                </div>
+                                <div className="bg-amber-50 p-4 rounded-xl border border-amber-200">
+                                  <span className="text-xs font-bold text-amber-700 uppercase">Token Tersisa</span>
+                                  <div className="text-2xl font-black font-mono text-amber-700">
+                                    {Math.max(0, validTokens.length - usedTokens.length)}
+                                  </div>
+                                </div>
+                              </div>
+
+
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+                                <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+                                  <div className="flex items-center space-x-2 text-slate-800 font-bold text-sm">
+                                    <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+                                    <span>Opsi 1: Impor & Ganti via File (Excel / CSV)</span>
+                                  </div>
+                                  <p className="text-xs text-slate-500">
+                                    Unggah file <code className="bg-slate-200 px-1 py-0.5 rounded">.xlsx</code>, <code className="bg-slate-200 px-1 py-0.5 rounded">.xls</code>, atau <code className="bg-slate-200 px-1 py-0.5 rounded">.csv</code>.
+                                  </p>
+                                  
+                                  <label className="block">
+                                    <input 
+                                      type="file" 
+                                      accept=".xlsx, .xls, .csv, .txt"
+                                      onChange={handleFileUpload}
+                                      className="block w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 file:cursor-pointer cursor-pointer border border-slate-300 rounded-xl bg-white"
+                                    />
+                                  </label>
+                                </div>
+
+
+                                <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+                                  <div className="flex items-center space-x-2 text-slate-800 font-bold text-sm">
+                                    <LinkIcon className="w-5 h-5 text-blue-600" />
+                                    <span>Opsi 2: Impor & Ganti via Link Gist / Raw URL</span>
+                                  </div>
+                                  <p className="text-xs text-slate-500">
+                                    Masukkan URL raw text GitHub Gist.
+                                  </p>
+
+
+                                  <div className="flex flex-col sm:flex-row gap-2">
+                                    <input
+                                      type="text"
+                                      value={gistUrlInput}
+                                      onChange={(e) => setGistUrlInput(e.target.value)}
+                                      placeholder="https://gist.githubusercontent.com/..."
+                                      className="flex-grow px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-blue-600"
+                                    />
+                                    <button
+                                      onClick={() => fetchTokensFromGist(gistUrlInput)}
+                                      disabled={isFetchingGist}
+                                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1 shrink-0 transition"
+                                    >
+                                      <RefreshCw className={`w-3.5 h-3.5 ${isFetchingGist ? 'animate-spin' : ''}`} />
+                                      <span>{isFetchingGist ? 'Memuat...' : 'Tarik & Ganti'}</span>
+                                    </button>
+                                  </div>
+
+
+                                  {gistStatusMessage.text && (
+                                    <div className={`text-xs p-2.5 rounded-lg border font-medium ${
+                                      gistStatusMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
+                                    }`}>
+                                      {gistStatusMessage.text}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+
+                              <div className="pt-4 border-t border-slate-100">
+                                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 mb-4">
+                                  <h4 className="font-bold text-sm text-slate-800">Daftar Token Terdaftar ({validTokens.length})</h4>
+
+
+                                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+                                    <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs w-full sm:w-auto justify-between sm:justify-start">
+                                      <button
+                                        type="button"
+                                        onClick={() => setTokenStatusFilter('ALL')}
+                                        className={`px-3 py-1.5 rounded-lg font-bold transition text-xs ${
+                                          tokenStatusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                                        }`}
+                                      >
+                                        Semua ({validTokens.length})
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setTokenStatusFilter('UNUSED')}
+                                        className={`px-3 py-1.5 rounded-lg font-bold transition text-xs ${
+                                          tokenStatusFilter === 'UNUSED' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                                        }`}
+                                      >
+                                        Belum Digunakan ({Math.max(0, validTokens.length - usedTokens.length)})
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setTokenStatusFilter('USED')}
+                                        className={`px-3 py-1.5 rounded-lg font-bold transition text-xs ${
+                                          tokenStatusFilter === 'USED' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                                        }`}
+                                      >
+                                        Sudah Digunakan ({usedTokens.length})
+                                      </button>
+                                    </div>
+
+
+                                    <div className="relative w-full sm:w-48">
+                                      <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                                      <input
+                                        type="text"
+                                        value={tokenSearch}
+                                        onChange={(e) => setTokenSearch(e.target.value)}
+                                        placeholder="Cari token..."
+                                        className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+
+
+                                <div className="max-h-52 overflow-y-auto border border-slate-200 rounded-xl bg-slate-50">
+                                  {validTokens.filter((token) => {
+                                    const isUsed = usedTokens.includes(token);
+                                    if (tokenStatusFilter === 'UNUSED' && isUsed) return false;
+                                    if (tokenStatusFilter === 'USED' && !isUsed) return false;
+                                    if (tokenSearch && !token.toLowerCase().includes(tokenSearch.toLowerCase())) return false;
+                                    return true;
+                                  }).length === 0 ? (
+                                    <div className="p-8 text-center text-xs text-slate-400 font-medium">
+                                      Tidak ada token yang sesuai dengan filter atau pencarian.
+                                    </div>
+                                  ) : (
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2 p-3">
+                                      {validTokens
+                                        .filter((token) => {
+                                          const isUsed = usedTokens.includes(token);
+                                          if (tokenStatusFilter === 'UNUSED' && isUsed) return false;
+                                          if (tokenStatusFilter === 'USED' && !isUsed) return false;
+                                          if (tokenSearch && !token.toLowerCase().includes(tokenSearch.toLowerCase())) return false;
+                                          return true;
+                                        })
+                                        .slice(0, 80)
+                                        .map((token, i) => {
+                                          const isUsed = usedTokens.includes(token);
+                                          return (
+                                            <div
+                                              key={i}
+                                              className={`p-2 rounded-lg text-xs font-mono font-semibold text-center truncate border ${
+                                                isUsed ? 'bg-rose-100 text-rose-700 border-rose-200 line-through' : 'bg-white text-emerald-800 border-emerald-200'
+                                              }`}
+                                            >
+                                              {token}
+                                            </div>
+                                          );
+                                        })}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </main>
+
+
+              {/* Footer */}
+              <footer className="bg-slate-900 text-slate-400 border-t border-slate-800 py-6 text-center text-xs mt-auto z-10">
+                <div className="max-w-7xl mx-auto px-4 space-y-2">
+                  <p className="font-semibold text-slate-300">
+                    Sistem E-Voting Pemilihan Ketua OSIS • SMP Negeri 36 Samarinda
+                  </p>
+                  <p className="text-slate-500">
+                    Terintegrasi Real-Time dengan Database Google Spreadsheet & Google Apps Script.
+                  </p>
+                </div>
+              </footer>
+
+
+              {/* MODALS */}
+              
+              {/* Delete Modal */}
+              {candidateToDelete && (
+                <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl max-w-md w-full p-6 text-center space-y-6 shadow-2xl border border-slate-200">
+                    <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-full mx-auto flex items-center justify-center border-2 border-rose-200">
+                      <Trash2 className="w-8 h-8" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-extrabold text-slate-900">Hapus Calon Ketua OSIS</h3>
+                      <p className="text-sm text-slate-600">
+                        Apakah Anda yakin ingin menghapus kandidat <br />
+                        <span className="font-bold text-slate-900 text-base">
+                          Nomor Urut {candidateToDelete.nomorUrut} - {candidateToDelete.nama}
+                        </span>?
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-3 pt-2">
+                      <button onClick={() => setCandidateToDelete(null)} className="w-1/2 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs">
+                        Batal
+                      </button>
+                      <button onClick={confirmDeleteCandidate} className="w-1/2 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-lg">
+                        Hapus Kandidat
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+
+              {/* Detail Vision Mission Modal */}
+              {detailModalCandidate && (
+                <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200">
+                    <div className="bg-slate-900 p-4 text-white flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">
+                        Detail Calon Ketua OSIS Nomor Urut {detailModalCandidate.nomorUrut}
+                      </span>
+                      <button onClick={() => setDetailModalCandidate(null)} className="p-1 text-slate-400 hover:text-white rounded-lg">
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+
+                    <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+                      <div className="flex items-center space-x-4">
+                        <img src={detailModalCandidate.foto} alt={detailModalCandidate.nama} className="w-20 h-20 rounded-xl object-cover border-2 border-slate-200" />
+                        <div>
+                          <h3 className="text-lg font-bold text-slate-900">{detailModalCandidate.nama}</h3>
+                          <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
+                            Kelas {detailModalCandidate.kelas}
+                          </span>
+                        </div>
+                      </div>
+
+
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Visi:</h4>
+                        <p className="text-sm text-slate-700 bg-slate-50 p-3.5 rounded-xl border border-slate-200 italic leading-relaxed">
+                          "{detailModalCandidate.visi}"
+                        </p>
+                      </div>
+
+
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Misi Utama:</h4>
+                        <ul className="space-y-2">
+                          {Array.isArray(detailModalCandidate.misi) ? (
+                            detailModalCandidate.misi.map((m, idx) => (
+                              <li key={idx} className="text-xs sm:text-sm text-slate-700 flex items-start space-x-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                                  {idx + 1}
+                                </span>
+                                <span>{m}</span>
+                              </li>
+                            ))
+                          ) : (
+                            <p className="text-sm text-slate-700">{detailModalCandidate.misi}</p>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+
+
+                    <div className="p-4 bg-slate-50 border-t border-slate-200 text-right">
+                      <button onClick={() => setDetailModalCandidate(null)} className="px-5 py-2 bg-slate-900 text-white font-bold text-xs rounded-xl hover:bg-slate-800">
+                        Tutup
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+
+              {/* Vote Confirmation Modal */}
+              {showConfirmModal && selectedCandidate && (
+                <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl max-w-md w-full p-6 text-center space-y-6 shadow-2xl border border-slate-200">
+                    <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full mx-auto flex items-center justify-center border-2 border-blue-200">
+                      <Vote className="w-8 h-8" />
+                    </div>
+
+
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-extrabold text-slate-900">Konfirmasi Pilihan Anda</h3>
+                      <p className="text-sm text-slate-600">
+                        Apakah Anda yakin ingin memilih <br />
+                        <span className="font-bold text-slate-900 text-base">
+                          Calon Ketua OSIS Nomor Urut {selectedCandidate.nomorUrut}
+                        </span> 
+                        <br />
+                        <span className="text-blue-600 font-extrabold text-lg">{selectedCandidate.nama}</span>?
+                      </p>
+                    </div>
+
+
+                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800 font-medium">
+                      ⚠️ Suara akan langsung tersimpan di Google Sheet & token tidak dapat dipakai ulang.
+                    </div>
+
+
+                    <div className="flex items-center space-x-3 pt-2">
+                      <button onClick={() => setShowConfirmModal(false)} disabled={isSubmittingVote} className="w-1/2 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs">
+                        Batal
+                      </button>
+                      <button onClick={handleVoteConfirm} disabled={isSubmittingVote} className="w-1/2 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow-lg flex items-center justify-center space-x-1">
+                        {isSubmittingVote ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span>Ya, Saya Yakin</span>}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+
+              {/* Vote Success Confirmation Modal */}
+              {showSuccessModal && (
+                <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl max-w-md w-full p-8 text-center space-y-6 shadow-2xl border border-emerald-100">
+                    <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full mx-auto flex items-center justify-center border-4 border-emerald-200 animate-bounce">
+                      <CheckCircle2 className="w-10 h-10" />
+                    </div>
+
+
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-black text-slate-900">Terima Kasih Telah Memilih!</h3>
+                      <p className="text-sm text-slate-600 leading-relaxed">
+                        Suara Anda telah tersimpan secara resmi ke dalam Database Google Spreadsheet SMPN 36 Samarinda.
+                      </p>
+                    </div>
+
+
+                    <div className="pt-4 border-t border-slate-100">
+                      <p className="text-xs text-slate-500">
+                        Halaman akan kembali otomatis ke menu utama dalam:
+                      </p>
+                      <div className="text-3xl font-black font-mono text-blue-600 mt-2">
+                        00:0{countdown}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+
+              {/* Add / Edit Candidate Modal */}
+              {candidateModalOpen && (
+                <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200">
+                    <div className="bg-slate-900 p-4 text-white flex items-center justify-between">
+                      <h3 className="text-sm font-bold">
+                        {editingCandidate ? 'Edit Data Calon Ketua OSIS' : 'Tambah Calon Ketua OSIS Baru'}
+                      </h3>
+                      <button onClick={() => setCandidateModalOpen(false)} className="text-slate-400 hover:text-white">
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+
+                    <form onSubmit={handleSaveCandidate} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Nomor Urut</label>
+                          <input
+                            type="text"
+                            required
+                            value={candidateForm.nomorUrut}
+                            onChange={(e) => setCandidateForm({ ...candidateForm, nomorUrut: e.target.value })}
+                            placeholder="01"
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Kelas</label>
+                          <input
+                            type="text"
+                            required
+                            value={candidateForm.kelas}
+                            onChange={(e) => setCandidateForm({ ...candidateForm, kelas: e.target.value })}
+                            placeholder="VIII-A"
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                          />
+                        </div>
+                      </div>
+
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Nama Lengkap</label>
+                        <input
+                          type="text"
+                          required
+                          value={candidateForm.nama}
+                          onChange={(e) => setCandidateForm({ ...candidateForm, nama: e.target.value })}
+                          placeholder="Nama Siswa Calon Ketua OSIS"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                        />
+                      </div>
+
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase text-slate-600 mb-1">URL Foto Profil</label>
+                        <input
+                          type="url"
+                          value={candidateForm.foto}
+                          onChange={(e) => setCandidateForm({ ...candidateForm, foto: e.target.value })}
+                          placeholder="https://images.unsplash.com/..."
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono"
+                        />
+                      </div>
+
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Visi</label>
+                        <textarea
+                          required
+                          rows={2}
+                          value={candidateForm.visi}
+                          onChange={(e) => setCandidateForm({ ...candidateForm, visi: e.target.value })}
+                          placeholder="Tuliskan visi calon..."
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                        ></textarea>
+                      </div>
+
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Misi (Satu poin per baris)</label>
+                        <textarea
+                          required
+                          rows={4}
+                          value={candidateForm.misi}
+                          onChange={(e) => setCandidateForm({ ...candidateForm, misi: e.target.value })}
+                          placeholder="Misi poin 1&#10;Misi poin 2&#10;Misi poin 3"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs"
+                        ></textarea>
+                      </div>
+
+
+                      <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+                        <button type="button" onClick={() => setCandidateModalOpen(false)} className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs">
+                          Batal
+                        </button>
+                        <button type="submit" className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl text-xs hover:bg-blue-700 shadow-md">
+                          Simpan ke Spreadsheet
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+
+              {/* Import Loading Modal */}
+              {isImportingTokens && (
+                <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+                  <div className="bg-white rounded-3xl max-w-md w-full p-8 text-center space-y-6 shadow-2xl border border-amber-200/80">
+                    <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-amber-400 via-blue-500 to-indigo-600 animate-spin opacity-75 blur-[2px]"></div>
+                      <div className="absolute inset-1 rounded-full bg-white flex items-center justify-center shadow-inner">
+                        <RefreshCw className="w-10 h-10 text-amber-500 animate-spin" />
+                      </div>
+                    </div>
+
+
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                        Mengimpor Database Token
+                      </h3>
+                      <div className="inline-block px-4 py-2 bg-amber-50 rounded-xl border border-amber-200">
+                        <p className="text-xs text-amber-900 font-bold">{importLoadingMessage}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+
+              {/* Reset Data Confirmation Modal */}
+              {showResetModal && (
+                <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl max-w-md w-full p-6 text-center space-y-6 shadow-2xl border border-rose-200">
+                    <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-full mx-auto flex items-center justify-center border-2 border-rose-200">
+                      <AlertTriangle className="w-7 h-7" />
+                    </div>
+
+
+                    {resetStep === 1 ? (
+                      <div className="space-y-4">
+                        <h3 className="text-xl font-bold text-slate-900">Konfirmasi Reset Data Pemilihan</h3>
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                          Tindakan ini akan mengosongkan data di Sheet 'Votes' dan me-reset status seluruh token di Sheet 'Tokens' menjadi UNUSED.
+                        </p>
+                        <div className="flex space-x-2 pt-2">
+                          <button onClick={() => setShowResetModal(false)} className="w-1/2 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs">
+                            Batal
+                          </button>
+                          <button onClick={() => setResetStep(2)} className="w-1/2 py-2.5 bg-rose-600 text-white font-bold rounded-xl text-xs hover:bg-rose-700">
+                            Lanjut Ke Konfirmasi
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <h3 className="text-xl font-bold text-rose-600">Peringatan Terakhir!</h3>
+                        <p className="text-xs text-slate-600">
+                          Ketik kata <code className="bg-rose-100 text-rose-800 font-bold px-1 py-0.5 rounded">RESET</code> di bawah ini untuk mengonfirmasi:
+                        </p>
+                        <input
+                          type="text"
+                          value={resetConfirmText}
+                          onChange={(e) => {
+                            setResetConfirmText(e.target.value);
+                            setResetStatusMsg('');
+                          }}
+                          placeholder="Ketik RESET"
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-center text-sm font-mono font-bold"
+                        />
+
+
+                        {resetStatusMsg && <p className="text-xs text-rose-600 font-bold">{resetStatusMsg}</p>}
+
+
+                        <div className="flex space-x-2 pt-2">
+                          <button onClick={() => setShowResetModal(false)} className="w-1/2 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs">
+                            Batal
+                          </button>
+                          <button onClick={handleExecuteReset} className="w-1/2 py-2.5 bg-rose-600 text-white font-bold rounded-xl text-xs hover:bg-rose-700">
+                            Hapus Permanen
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+</body>
+</html>
